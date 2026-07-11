@@ -109,77 +109,74 @@ class MainActivity : AppCompatActivity() {
 
     // پردازش متن پیامک و رسم نمودار
     // فرمت: S<سنسور> start=<HH:mm> step=<گام>\n<عدد,عدد,عدد>
-    private fun handleSms(raw: String) {
-        try {
-            val body = raw.trim()
-            if (!body.startsWith("S")) {
-                txtInfo.text = "فرمت پیامک نامعتبر است"
-                return
-            }
+   private fun handleSms(body: String) {
+    val text = body.trim()
+    if (!text.startsWith("S")) return
 
-            // جدا کردن هدر و خط داده
-            val lines = body.split("\n", "\r\n", "\r").filter { it.isNotBlank() }
-            if (lines.size < 2) {
-                txtInfo.text = "داده‌ی دما در پیامک نیست"
-                return
-            }
+    // جدا کردن خط هدر از خطوط داده
+    val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+    if (lines.isEmpty()) return
 
-            val header = lines[0].trim()
-            val dataLine = lines[1].trim()
+    val header = lines[0]
+    val dataStr = lines.drop(1).joinToString(",")
 
-            // استخراج شماره سنسور
-            val sensor = Regex("^S(\\d+)").find(header)?.groupValues?.get(1) ?: "?"
+    // استخراج شماره سنسور
+    val sensorMatch = Regex("^S(\\d+)").find(header)
+    val sensor = sensorMatch?.groupValues?.get(1) ?: "?"
 
-            // استخراج زمان شروع
-            val start = Regex("start=([0-9]{1,2}:[0-9]{2})").find(header)?.groupValues?.get(1) ?: "00:00"
+    // استخراج ساعت شروع
+    val startMatch = Regex("start=(\\d{1,2}):(\\d{2})").find(header)
+    if (startMatch == null) {
+        runOnUiThread { txtInfo.text = "خطا: ساعت شروع پیدا نشد" }
+        return
+    }
+    val startHour = startMatch.groupValues[1].toInt()
+    val startMin = startMatch.groupValues[2].toInt()
 
-            // استخراج گام زمانی
-            val step = Regex("step=(\\S+)").find(header)?.groupValues?.get(1) ?: "1h"
+    // خواندن دماها
+    val temps = dataStr.split(",")
+        .mapNotNull { it.trim().toFloatOrNull() }
 
-            // مقادیر دما
-            val values = dataLine.split(",")
-                .mapNotNull { it.trim().toFloatOrNull() }
+    if (temps.isEmpty()) {
+        runOnUiThread { txtInfo.text = "خطا: دمای پیدا نشد" }
+        return
+    }
 
-            if (values.isEmpty()) {
-                txtInfo.text = "هیچ مقدار دمایی خوانده نشد"
-                return
-            }
+    // گام ثابت ۳۰ دقیقه
+    val stepMinutes = 30
 
-            txtInfo.text = "سنسور $sensor | شروع $start | گام $step | تعداد نقاط ${values.size}"
+    runOnUiThread {
+        txtInfo.text = "سنسور $sensor - شروع %02d:%02d - %d مقدار"
+            .format(startHour, startMin, temps.size)
+        drawChart(temps, startHour, startMin, stepMinutes)
+    }
+}
 
-            drawChart(values, start, step)
 
-        } catch (e: Exception) {
-            txtInfo.text = "خطا در پردازش: ${e.message}"
-            Toast.makeText(this, "خطا در پردازش پیامک", Toast.LENGTH_SHORT).show()
+    private fun drawChart(temps: List<Float>, startHour: Int, startMin: Int, stepMinutes: Int) {
+    val entries = temps.mapIndexed { i, t -> Entry(i.toFloat(), t) }
+
+    val dataSet = LineDataSet(entries, "دما")
+    dataSet.setDrawCircles(false)
+    dataSet.lineWidth = 2f
+
+    chart.data = LineData(dataSet)
+
+    // برچسب زمان روی محور X
+    chart.xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+        override fun getFormattedValue(value: Float): String {
+            val totalMin = startMin + value.toInt() * stepMinutes
+            val h = (startHour + totalMin / 60) % 24
+            val m = totalMin % 60
+            return "%02d:%02d".format(h, m)
         }
     }
 
-    private fun drawChart(values: List<Float>, start: String, step: String) {
-        val entries = values.mapIndexed { i, v -> Entry(i.toFloat(), v) }
+    chart.xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
+    chart.description.isEnabled = false
+    chart.invalidate()
+}
 
-        val dataSet = LineDataSet(entries, "دما (°C)").apply {
-            setDrawCircles(true)
-            circleRadius = 3f
-            lineWidth = 2f
-            setDrawValues(false)
-        }
-
-        chart.data = LineData(dataSet)
-
-        // برچسب‌های محور افقی بر اساس زمان شروع و گام
-        val labels = buildTimeLabels(start, step, values.size)
-        chart.xAxis.apply {
-            valueFormatter = IndexAxisValueFormatter(labels)
-            position = XAxis.XAxisPosition.BOTTOM
-            granularity = 1f
-            labelRotationAngle = -45f
-        }
-
-        chart.description.text = ""
-        chart.axisRight.isEnabled = false
-        chart.invalidate()
-    }
 
     // ساخت برچسب‌های زمانی محور افقی
     private fun buildTimeLabels(start: String, step: String, count: Int): List<String> {
