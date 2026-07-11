@@ -1,11 +1,14 @@
 package com.example.tempchart
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.telephony.SmsManager
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -18,15 +21,23 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.formatter.ValueFormatter
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var txtInfo: TextView
-    private lateinit var chart: LineChart
+    companion object {
+        const val DEVICE_NUMBER = "+98XXXXXXX" // شماره واقعی دستگاه را اینجا بگذار
+        const val ACTION_SMS = "TEMP_SMS_RECEIVED"
+        const val PERM_REQUEST = 100
+    }
 
-    // گیرنده‌ی داخلی برای پیامک‌های زنده که از SmsReceiver می‌آد
-    private val smsBroadcastReceiver = object : BroadcastReceiver() {
+    private lateinit var chart: LineChart
+    private lateinit var txtInfo: TextView
+
+    // برچسب‌های زمانی محور X
+    private var timeLabels: List<String> = emptyList()
+
+    private val smsReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val body = intent?.getStringExtra("body") ?: return
             handleSms(body)
@@ -37,175 +48,191 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        txtInfo = findViewById(R.id.txtInfo)
         chart = findViewById(R.id.chart)
+        txtInfo = findViewById(R.id.txtInfo)
 
-        findViewById<Button>(R.id.btnReadLast).setOnClickListener {
-            readLastSms()
-        }
+        // درخواست مجوزهای لازم
+        requestNededPermissions()
 
-        // درخواست مجوزها در شروع
-        requestSmsPermissions()
+        // دکمه خواندن آخرین پیامک
+        findViewById<Button>(R.id.btnReadLast).setOnClickListener { readLastSms() }
+
+        // دکمه‌های درخواست سنسور
+        findViewById<Button>(R.id.btnSensor1).setOnClickListener { requestSensor(1) }
+        findViewById<Button>(R.id.btnSensor2).setOnClickListener { requestSensor(2) }
+        findViewById<Button>(R.id.btnSensor3).setOnClickListener { requestSensor(3) }
+        findViewById<Button>(R.id.btnSensor4).setOnClickListener { requestSensor(4) }
+        findViewById<Button>(R.id.btnSensor5).setOnClickListener { requestSensor(5) }
     }
 
     override fun onResume() {
         super.onResume()
-        LocalBroadcastManager.getInstance(this).registerReceiver(
-            smsBroadcastReceiver,
-            IntentFilter("TEMP_SMS_RECEIVED")
-        )
+        LocalBroadcastManager.getInstance(this)
+            .registerReceiver(smsReceiver, IntentFilter(ACTION_SMS))
     }
 
     override fun onPause() {
         super.onPause()
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(smsBroadcastReceiver)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(smsReceiver)
     }
 
-    private fun requestSmsPermissions() {
-        val needed = arrayOf(
-            android.Manifest.permission.RECEIVE_SMS,
-            android.Manifest.permission.READ_SMS
-        ).filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
+    private fun requestNeededPermissions() {
+        val needed = mutableListOf<String>()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)
+            != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.RECEIVE_SMS)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
+            != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.READ_SMS)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
+            != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.SEND_SMS)
         if (needed.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, needed.toTypedArray(), 100)
+            ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERM_REQUEST)
         }
     }
 
-    // خواندن آخرین پیامک مناسب از صندوق ورودی
-    private fun readLastSms() {
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS)
+    // ارسال درخواست داده به دستگاه: G1 تا G5
+    private fun requestSensor(sensor: Int) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(
-                this,
-                arrayOf(android.Manifest.permission.READ_SMS),
-                101
-            )
+                this, arrayOf(Manifest.permission.SEND_SMS), PERM_REQUEST)
+            Toast.makeText(this, "مجوز ارسال پیامک لازم است", Toast.LENGTH_SHORT).show()
             return
         }
+        try {
+            val sms = SmsManager.getDefault()
+            sms.sendTextMessage(DEVICE_NUMBER, null, "G$sensor", null, null)
+            Toast.makeText(this, "درخواست سنسور $sensor ارسال شد", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا در ارسال: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
 
-        val uri = android.net.Uri.parse("content://sms/inbox")
-        val cursor = contentResolver.query(
-            uri,
-            arrayOf("body"),
-            null, null,
-            "date DESC"
-        )
-
-        cursor?.use {
-            val bodyIndex = it.getColumnIndex("body")
-            while (it.moveToNext()) {
-                val body = it.getString(bodyIndex) ?: continue
-                if (body.trim().startsWith("S")) {
-                    handleSms(body)
-                    return
+    // خواندن آخرین پیامک شروع‌شونده با S از صندوق ورودی
+    private fun readLastSms() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this, arrayOf(Manifest.permission.READ_SMS), PERM_REQUEST)
+            Toast.makeText(this, "مجوز خواندن پیامک لازم است", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val cursor = contentResolver.query(
+                Uri.parse("content://sms/inbox"),
+                arayOf("body"),
+                null, null,
+                "date DESC"
+            )
+            cursor?.use {
+                val idx = it.getColumnIndex("body")
+                while (it.moveToNext()) {
+                    val body = it.getString(idx) ?: continue
+                    if (body.trimStart().startsWith("S") {
+                        handleSms(body)
+                        return
+                    }
                 }
             }
-        }
-
-        txtInfo.text = "پیامک مناسبی پیدا نشد"
-    }
-
-    // پردازش متن پیامک و رسم نمودار
-    // فرمت: S<سنسور> start=<HH:mm> step=<گام>\n<عدد,عدد,عدد>
-   private fun handleSms(body: String) {
-    val text = body.trim()
-    if (!text.startsWith("S")) return
-
-    // جدا کردن خط هدر از خطوط داده
-    val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-    if (lines.isEmpty()) return
-
-    val header = lines[0]
-    val dataStr = lines.drop(1).joinToString(",")
-
-    // استخراج شماره سنسور
-    val sensorMatch = Regex("^S(\\d+)").find(header)
-    val sensor = sensorMatch?.groupValues?.get(1) ?: "?"
-
-    // استخراج ساعت شروع
-    val startMatch = Regex("start=(\\d{1,2}):(\\d{2})").find(header)
-    if (startMatch == null) {
-        runOnUiThread { txtInfo.text = "خطا: ساعت شروع پیدا نشد" }
-        return
-    }
-    val startHour = startMatch.groupValues[1].toInt()
-    val startMin = startMatch.groupValues[2].toInt()
-
-    // خواندن دماها
-    val temps = dataStr.split(",")
-        .mapNotNull { it.trim().toFloatOrNull() }
-
-    if (temps.isEmpty()) {
-        runOnUiThread { txtInfo.text = "خطا: دمای پیدا نشد" }
-        return
-    }
-
-    // گام ثابت ۳۰ دقیقه
-    val stepMinutes = 30
-
-    runOnUiThread {
-        txtInfo.text = "سنسور $sensor - شروع %02d:%02d - %d مقدار"
-            .format(startHour, startMin, temps.size)
-        drawChart(temps, startHour, startMin, stepMinutes)
-    }
-}
-
-
-    private fun drawChart(temps: List<Float>, startHour: Int, startMin: Int, stepMinutes: Int) {
-    val entries = temps.mapIndexed { i, t -> Entry(i.toFloat(), t) }
-
-    val dataSet = LineDataSet(entries, "دما")
-    dataSet.setDrawCircles(false)
-    dataSet.lineWidth = 2f
-
-    chart.data = LineData(dataSet)
-
-    // برچسب زمان روی محور X
-    chart.xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
-        override fun getFormattedValue(value: Float): String {
-            val totalMin = startMin + value.toInt() * stepMinutes
-            val h = (startHour + totalMin / 60) % 24
-            val m = totalMin % 60
-            return "%02d:%02d".format(h, m)
+            Toast.makeText(this, "پیامک معتبری پیدا نشد", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا در خواندن: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
-    chart.xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
-    chart.description.isEnabled = false
-    chart.invalidate()
-}
+    // پردازش پیامک با فرمت:
+    // S<n> start=<H:m>\n<دما یا دما*تعداد , ...>
+    private fun handleSms(raw: String) {
+        try {
+            val text = raw.trim()
+            val newlineIdx = text.indexOf('\n')
+            if (newlineIdx < 0) {
+                Toast.makeText(this, "فرمت پیامک نامعتبر است", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val header = text.substring(0, newlineIdx).trim()
+            val dataLine = text.substring(newlineIdx + 1).trim()
 
+            // استخراج شماره سنسور و ساعت شروع
+            val sensor = Regex("""S\s*(\d+)"").find(header)?.groupValues?.get(1) ?: "?"
+            val startStr = Regex("""start\s*=\s*(\d{1,2}:\d{2})""")
+                .find(header)?.groupValues?.get(1) ?: "0:00"
 
-    // ساخت برچسب‌های زمانی محور افقی
-    private fun buildTimeLabels(start: String, step: String, count: Int): List<String> {
-        val parts = start.split(":")
+            val temps = expandTemps(dataLine)
+            if (temps.isEmpty()) {
+                Toast.makeText(this, "داده‌ای برای رسم وجود ندارد", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            timeLabels = buildTimeLabels(startStr, temps.size)
+            drawChart(temps)
+
+            txtInfo.text = "سنسور $sensor | شروع $startStr | تعداد ${temps.size} نقطه"
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا در پردازش: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // باز کردن فرمت فشرده: "18*3,17*4,19" -> [18,18,18,17,17,17,19]
+    private fun expandTemps(dataLine: String): List<Float> {
+        val result = mutableListOf<Float>()
+        for (token in dataLine.split(",")) {
+            val t = token.trim()
+            if (t.isEmpty()) continue
+            if (t.contains("*")) {
+                val parts = t.split("*")
+                val value = parts[0].trim().toFloat()
+                val count = parts[1].trim().toInt()
+                repeat(count) { result.add(value) }
+            } else {
+                result.add(t.toFloat())
+            }
+        }
+        return result
+    }
+
+    // ساخت برچسب زمانی با گام۳۰ دقیقه از ساعت شروع
+    private fun buildTimeLabels(startStr: String, count: Int): List<String> {
+        val parts = startStr.split(":")
         var hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
         var minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
-
-        // تبدیل گام به دقیقه
-        val stepMinutes = parseStepMinutes(step)
-
-        val labels = ArrayList<String>()
+        val labels = ArrayList<String>(count)
         for (i in 0 until count) {
             labels.add(String.format("%02d:%02d", hour, minute))
-            minute += stepMinutes
-            hour += minute / 60
-            minute %= 60
-            hour %= 24
+            minute += 30
+            if (minute >= 60) {
+                minute -= 60
+                hour = (hour + 1) % 24
+            }
         }
         return labels
     }
 
-    // تبدیل رشته‌ی گام (مثل 1h، 30m، 2h) به دقیقه
-    private fun parseStepMinutes(step: String): Int {
-        val s = step.trim().lowercase()
-        val num = Regex("(\\d+)").find(s)?.groupValues?.get(1)?.toIntOrNull() ?: 1
-        return when {
-            s.endsWith("h") -> num * 60
-            s.endsWith("m") -> num
-            else -> num * 60
+    private fun drawChart(temps: List<Float>) {
+        val entries = temps.mapIndexed { i, v -> Entry(i.toFloat(), v) }
+        val dataSet = LineDataSet(entries, "دما (°C)").apply {
+            setDrawCircles(true)
+            circleRadius = 2.5f
+            lineWidth = 1.5f
+            setDrawValues(false)
         }
+
+        chart.data = LineData(dataSet)
+
+        chart.xAxis.aply {
+            position = XAxis.XAxisPosition.BOTTOM
+            granularity = 1f
+            labelRotationAngle = -45f
+            setLabelCount(6, false)
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                val idx = value.toInt()
+                    return timeLabels.getOrNull(idx) ?: ""
+                }
+            }
+        }
+
+        chart.axisRight.isEnabled = false
+        chart.description.isEnabled = false
+        chart.invalidate()
     }
 }
