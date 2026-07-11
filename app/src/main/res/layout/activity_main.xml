@@ -1,28 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="12dp">
 
-    <TextView
-        android:id="@+id/txtInfo"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="منتظر دریافت پیامک.."
-        android:textSize="16sp"
-        android:padding="8dp" />
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/btnReadLast"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="خواندن آخرین پیامک" />
+        <TextView
+            android:id="@+id/txtInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="در انتظار داده.."
+            android:textSize="16sp"
+            android:paddingBottom="8dp" />
 
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/chart"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
+        <com.github.mikephil.charting.charts.LineChart
+            android:id="@+id/chart"
+            android:layout_width="match_parent"
+            android:layout_height="320dp" />
 
-</LinearLayout>
+        <Button
+            android:id="@+id/btnReadLast"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="خواندن آخرین پیامک" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="درخواست داده سنسور:"
+            android:textSize="15sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnSensor1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="۱" />
+
+            <Button
+                android:id="@+id/btnSensor2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="۲" />
+
+            <Button
+                android:id="@+id/btnSensor3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="۳" />
+
+            <Button
+                android:id="@+id/btnSensor4"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="۴" />
+
+            <Button
+                android:id="@+id/btnSensor5"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="۵" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>
