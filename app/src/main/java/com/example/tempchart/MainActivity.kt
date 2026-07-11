@@ -2,7 +2,8 @@ package com.example.tempchart
 
 import android.Manifest
 import android.content.BroadcastReceiver
-import android.content.ContextIntent
+import android.content.Context
+import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -25,7 +26,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val DEVICE_NUMBER = "+98XXXXX" // شماره واقعی دستگاه را اینجا بگذار
+        const val DEVICE_NUMBER = "+98XXXXX"
         const val ACTION_SMS = "TEMP_SMS_RECEIVED"
         const val PERM_REQUEST = 100
     }
@@ -52,7 +53,6 @@ class MainActivity : AppCompatActivity() {
         requestNeededPermissions()
 
         findViewById<Button>(R.id.btnReadLast).setOnClickListener { readLastSms() }
-
         findViewById<Button>(R.id.btnSensor1).setOnClickListener { requestSensor(1) }
         findViewById<Button>(R.id.btnSensor2).setOnClickListener { requestSensor(2) }
         findViewById<Button>(R.id.btnSensor3).setOnClickListener { requestSensor(3) }
@@ -73,12 +73,25 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestNeededPermissions() {
         val needed = mutableListOf<String>()
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)
-            != PackageManager.PERMISION_GRANTED) need.add(Manifest.permission.RECEIVE_SMS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            needed.add(Manifest.permission.RECEIVE_SMS)
+        }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
-            != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.READ_SMS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            needed.add(Manifest.permission.READ_SMS)
+        }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
-            != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.SEND_SMS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            needed.add(Manifest.permission.SEND_SMS)
+        }
+
         if (needed.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERM_REQUEST)
         }
@@ -86,15 +99,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestSensor(sensor: Int) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
-            != PackageManager.PERMISSION_GRANTED) {
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             ActivityCompat.requestPermissions(
-                this, arrayOf(Manifest.permission.SEND_SMS), PERM_REQUEST)
+                this,
+                arrayOf(Manifest.permission.SEND_SMS),
+                PERM_REQUEST
+            )
             Toast.makeText(this, "مجوز ارسال پیامک لازم است", Toast.LENGTH_SHORT).show()
             return
         }
+
         try {
-            val sms = SmsManager.getDefault()
-            sms.sendTextMessage(DEVICE_NUMBER, null, "G$sensor", null)
+            val smsManager = SmsManager.getDefault()
+            smsManager.sendTextMessage(DEVICE_NUMBER, null, "G$sensor", null, null)
             Toast.makeText(this, "درخواست سنسور $sensor ارسال شد", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, "خطا در ارسال: ${e.message}", Toast.LENGTH_LONG).show()
@@ -103,19 +121,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun readLastSms() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
-            != PackageManager.PERMISSION_GRANTED) {
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             ActivityCompat.requestPermissions(
-                this, arrayOf(Manifest.permission.READ_SMS), PERM_REQUEST)
+                this,
+                arrayOf(Manifest.permission.READ_SMS),
+                PERM_REQUEST
+            )
             Toast.makeText(this, "مجوز خواندن پیامک لازم است", Toast.LENGTH_SHORT).show()
             return
         }
+
         try {
             val cursor = contentResolver.query(
                 Uri.parse("content://sms/inbox"),
                 arrayOf("body"),
                 null,
+                null,
                 "date DESC"
             )
+
             cursor?.use {
                 val idx = it.getColumnIndex("body")
                 while (it.moveToNext()) {
@@ -123,9 +148,10 @@ class MainActivity : AppCompatActivity() {
                     if (body.trimStart().startsWith("S")) {
                         handleSms(body)
                         return
-                }
+                    }
                 }
             }
+
             Toast.makeText(this, "پیامک معتبری پیدا نشد", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, "خطا در خواندن: ${e.message}", Toast.LENGTH_LONG).show()
@@ -140,6 +166,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "فرمت پیامک نامعتبر است", Toast.LENGTH_SHORT).show()
                 return
             }
+
             val header = text.substring(0, newlineIdx).trim()
             val dataLine = text.substring(newlineIdx + 1).trim()
 
@@ -164,18 +191,23 @@ class MainActivity : AppCompatActivity() {
 
     private fun expandTemps(dataLine: String): List<Float> {
         val result = mutableListOf<Float>()
+
         for (token in dataLine.split(",")) {
             val t = token.trim()
             if (t.isEmpty()) continue
+
             if (t.contains("*")) {
                 val parts = t.split("*")
-                val value = parts[0].trim().toFloat()
-                val count = parts[1].trim().toInt()
-                repeat(count) { result.add(value) }
+                if (parts.size == 2) {
+                    val value = parts[0].trim().toFloat()
+                    val count = parts[1].trim().toInt()
+                    repeat(count) { result.add(value) }
+                }
             } else {
                 result.add(t.toFloat())
             }
         }
+
         return result
     }
 
@@ -183,6 +215,7 @@ class MainActivity : AppCompatActivity() {
         val parts = startStr.split(":")
         var hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
         var minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+
         val labels = ArrayList<String>(count)
         for (i in 0 until count) {
             labels.add(String.format("%02d:%02d", hour, minute))
@@ -192,11 +225,13 @@ class MainActivity : AppCompatActivity() {
                 hour = (hour + 1) % 24
             }
         }
+
         return labels
     }
 
     private fun drawChart(temps: List<Float>) {
         val entries = temps.mapIndexed { i, v -> Entry(i.toFloat(), v) }
+
         val dataSet = LineDataSet(entries, "دما (°C)").apply {
             setDrawCircles(true)
             circleRadius = 2.5f
@@ -211,9 +246,9 @@ class MainActivity : AppCompatActivity() {
             granularity = 1f
             labelRotationAngle = -45f
             setLabelCount(6, false)
-            valueFormater = object : ValueFormatter() {
+            valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                val idx = value.toInt()
+                    val idx = value.toInt()
                     return timeLabels.getOrNull(idx) ?: ""
                 }
             }
