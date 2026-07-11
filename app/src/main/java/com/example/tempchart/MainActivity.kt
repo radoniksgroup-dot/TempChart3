@@ -26,7 +26,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val DEVICE_NUMBER = "+98XXXXXXX" // شماره واقعی دستگاه را اینجا بگذار
+        const val DEVICE_NUMBER = "+98XXXXXX" // شماره واقعی دستگاه را اینجا بگذار
         const val ACTION_SMS = "TEMP_SMS_RECEIVED"
         const val PERM_REQUEST = 100
     }
@@ -34,7 +34,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var chart: LineChart
     private lateinit var txtInfo: TextView
 
-    // برچسب‌های زمانی محور X
     private var timeLabels: List<String> = emptyList()
 
     private val smsReceiver = object : BroadcastReceiver() {
@@ -51,13 +50,10 @@ class MainActivity : AppCompatActivity() {
         chart = findViewById(R.id.chart)
         txtInfo = findViewById(R.id.txtInfo)
 
-        // درخواست مجوزهای لازم
         requestNeededPermissions()
 
-        // دکمه خواندن آخرین پیامک
         findViewById<Button>(R.id.btnReadLast).setOnClickListener { readLastSms() }
 
-        // دکمه‌های درخواست سنسور
         findViewById<Button>(R.id.btnSensor1).setOnClickListener { requestSensor(1) }
         findViewById<Button>(R.id.btnSensor2).setOnClickListener { requestSensor(2) }
         findViewById<Button>(R.id.btnSensor3).setOnClickListener { requestSensor(3) }
@@ -89,7 +85,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ارسال درخواست داده به دستگاه: G1 تا G5
     private fun requestSensor(sensor: Int) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED) {
@@ -107,10 +102,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // خواندن آخرین پیامک شروع‌شونده با S از صندوق ورودی
     private fun readLastSms() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
-            != PackageManager.PERMISSION_GRANTED) {
+            != PackageManager.PERMISION_GRANTED) {
             ActivityCompat.requestPermissions(
                 this, arayOf(Manifest.permission.READ_SMS), PERM_REQUEST)
             Toast.makeText(this, "مجوز خواندن پیامک لازم است", Toast.LENGTH_SHORT).show()
@@ -125,9 +119,9 @@ class MainActivity : AppCompatActivity() {
             )
             cursor?.use {
                 val idx = it.getColumnIndex("body")
-                while (it.moveToNext()) {
+                while (it.moveToNext() {
                     val body = it.getString(idx) ?: continue
-                    if (body.trimStart().startsWith("S")) {
+                    if (body.trimStart().startsWith("S") {
                         handleSms(body)
                         return
                     }
@@ -139,8 +133,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // پردازش پیامک با فرمت:
-    // S<n> start=<H:m>\n<دما یا دما*تعداد , ...>
     private fun handleSms(raw: String) {
         try {
             val text = raw.trim()
@@ -152,13 +144,12 @@ class MainActivity : AppCompatActivity() {
             val header = text.substring(0, newlineIdx).trim()
             val dataLine = text.substring(newlineIdx + 1).trim()
 
-            // استخراج شماره سنسور و ساعت شروع
             val sensor = Regex("""S\s*(\d+)""").find(header)?.groupValues?.get(1) ?: "?"
             val startStr = Regex("""start\s*=\s*(\d{1,2}:\d{2})""")
                 .find(header)?.groupValues?.get(1) ?: "0:00"
 
             val temps = expandTemps(dataLine)
-            if (temps.isEmpty()) {
+            if (temps.isEmpty() {
                 Toast.makeText(this, "داده‌ای برای رسم وجود ندارد", Toast.LENGTH_SHORT).show()
                 return
             }
@@ -172,12 +163,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // باز کردن فرمت فشرده: "18*3,17*4,19" -> [18,18,18,17,17,17,19]
     private fun expandTemps(dataLine: String): List<Float> {
         val result = mutableListOf<Float>()
-        for (token in dataLine.split(",")) {
+        for (token in dataLine.split(",") {
             val t = token.trim()
-            if (t.isEmpty()) continue
+            if (t.isEmpty() continue
             if (t.contains("*")) {
                 val parts = t.split("*")
                 val value = parts[0].trim().toFloat()
@@ -190,7 +180,6 @@ class MainActivity : AppCompatActivity() {
         return result
     }
 
-    // ساخت برچسب زمانی با گام۳۰ دقیقه از ساعت شروع
     private fun buildTimeLabels(startStr: String, count: Int): List<String> {
         val parts = startStr.split(":")
         var hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
@@ -203,7 +192,6 @@ class MainActivity : AppCompatActivity() {
                 minute -= 60
                 hour = (hour + 1) % 24
             }
-        }
         return labels
     }
 
@@ -225,7 +213,7 @@ class MainActivity : AppCompatActivity() {
             setLabelCount(6, false)
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                val idx = value.toInt()
+                    val idx = value.toInt()
                     return timeLabels.getOrNull(idx) ?: ""
                 }
             }
