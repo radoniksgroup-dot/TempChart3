@@ -2,8 +2,7 @@ package com.example.tempchart
 
 import android.Manifest
 import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
+import android.content.ContextIntent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -26,7 +25,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val DEVICE_NUMBER = "+98XXXXXX" // شماره واقعی دستگاه را اینجا بگذار
+        const val DEVICE_NUMBER = "+98XXXXX" // شماره واقعی دستگاه را اینجا بگذار
         const val ACTION_SMS = "TEMP_SMS_RECEIVED"
         const val PERM_REQUEST = 100
     }
@@ -75,7 +74,7 @@ class MainActivity : AppCompatActivity() {
     private fun requestNeededPermissions() {
         val needed = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)
-            != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.RECEIVE_SMS)
+            != PackageManager.PERMISION_GRANTED) need.add(Manifest.permission.RECEIVE_SMS)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
             != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.READ_SMS)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
@@ -95,7 +94,7 @@ class MainActivity : AppCompatActivity() {
         }
         try {
             val sms = SmsManager.getDefault()
-            sms.sendTextMessage(DEVICE_NUMBER, null, "G$sensor", null, null)
+            sms.sendTextMessage(DEVICE_NUMBER, null, "G$sensor", null)
             Toast.makeText(this, "درخواست سنسور $sensor ارسال شد", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, "خطا در ارسال: ${e.message}", Toast.LENGTH_LONG).show()
@@ -104,27 +103,27 @@ class MainActivity : AppCompatActivity() {
 
     private fun readLastSms() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
-            != PackageManager.PERMISION_GRANTED) {
+            != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(
-                this, arayOf(Manifest.permission.READ_SMS), PERM_REQUEST)
+                this, arrayOf(Manifest.permission.READ_SMS), PERM_REQUEST)
             Toast.makeText(this, "مجوز خواندن پیامک لازم است", Toast.LENGTH_SHORT).show()
             return
         }
         try {
             val cursor = contentResolver.query(
                 Uri.parse("content://sms/inbox"),
-                arayOf("body"),
-                null, null,
+                arrayOf("body"),
+                null,
                 "date DESC"
             )
             cursor?.use {
                 val idx = it.getColumnIndex("body")
-                while (it.moveToNext() {
+                while (it.moveToNext()) {
                     val body = it.getString(idx) ?: continue
-                    if (body.trimStart().startsWith("S") {
+                    if (body.trimStart().startsWith("S")) {
                         handleSms(body)
                         return
-                    }
+                }
                 }
             }
             Toast.makeText(this, "پیامک معتبری پیدا نشد", Toast.LENGTH_SHORT).show()
@@ -149,7 +148,7 @@ class MainActivity : AppCompatActivity() {
                 .find(header)?.groupValues?.get(1) ?: "0:00"
 
             val temps = expandTemps(dataLine)
-            if (temps.isEmpty() {
+            if (temps.isEmpty()) {
                 Toast.makeText(this, "داده‌ای برای رسم وجود ندارد", Toast.LENGTH_SHORT).show()
                 return
             }
@@ -165,9 +164,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun expandTemps(dataLine: String): List<Float> {
         val result = mutableListOf<Float>()
-        for (token in dataLine.split(",") {
+        for (token in dataLine.split(",")) {
             val t = token.trim()
-            if (t.isEmpty() continue
+            if (t.isEmpty()) continue
             if (t.contains("*")) {
                 val parts = t.split("*")
                 val value = parts[0].trim().toFloat()
@@ -192,6 +191,7 @@ class MainActivity : AppCompatActivity() {
                 minute -= 60
                 hour = (hour + 1) % 24
             }
+        }
         return labels
     }
 
@@ -211,9 +211,9 @@ class MainActivity : AppCompatActivity() {
             granularity = 1f
             labelRotationAngle = -45f
             setLabelCount(6, false)
-            valueFormatter = object : ValueFormatter() {
+            valueFormater = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    val idx = value.toInt()
+                val idx = value.toInt()
                     return timeLabels.getOrNull(idx) ?: ""
                 }
             }
