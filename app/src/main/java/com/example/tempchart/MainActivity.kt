@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
         txtInfo = findViewById(R.id.txtInfo)
 
         // درخواست مجوزهای لازم
-        requestNededPermissions()
+        requestNeededPermissions()
 
         // دکمه خواندن آخرین پیامک
         findViewById<Button>(R.id.btnReadLast).setOnClickListener { readLastSms() }
@@ -94,7 +94,7 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(
-                this, arrayOf(Manifest.permission.SEND_SMS), PERM_REQUEST)
+                this, arayOf(Manifest.permission.SEND_SMS), PERM_REQUEST)
             Toast.makeText(this, "مجوز ارسال پیامک لازم است", Toast.LENGTH_SHORT).show()
             return
         }
@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
             != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(
-                this, arrayOf(Manifest.permission.READ_SMS), PERM_REQUEST)
+                this, arayOf(Manifest.permission.READ_SMS), PERM_REQUEST)
             Toast.makeText(this, "مجوز خواندن پیامک لازم است", Toast.LENGTH_SHORT).show()
             return
         }
@@ -127,7 +127,7 @@ class MainActivity : AppCompatActivity() {
                 val idx = it.getColumnIndex("body")
                 while (it.moveToNext()) {
                     val body = it.getString(idx) ?: continue
-                    if (body.trimStart().startsWith("S") {
+                    if (body.trimStart().startsWith("S")) {
                         handleSms(body)
                         return
                     }
@@ -153,7 +153,7 @@ class MainActivity : AppCompatActivity() {
             val dataLine = text.substring(newlineIdx + 1).trim()
 
             // استخراج شماره سنسور و ساعت شروع
-            val sensor = Regex("""S\s*(\d+)"").find(header)?.groupValues?.get(1) ?: "?"
+            val sensor = Regex("""S\s*(\d+)""").find(header)?.groupValues?.get(1) ?: "?"
             val startStr = Regex("""start\s*=\s*(\d{1,2}:\d{2})""")
                 .find(header)?.groupValues?.get(1) ?: "0:00"
 
@@ -209,7 +209,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun drawChart(temps: List<Float>) {
         val entries = temps.mapIndexed { i, v -> Entry(i.toFloat(), v) }
-        val dataSet = LineDataSet(entries, "دما (°C)").apply {
+        val dataSet = LineDataSet(entries, "دما (°C)").aply {
             setDrawCircles(true)
             circleRadius = 2.5f
             lineWidth = 1.5f
