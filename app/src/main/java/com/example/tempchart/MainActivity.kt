@@ -94,7 +94,7 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(
-                this, arayOf(Manifest.permission.SEND_SMS), PERM_REQUEST)
+                this, arrayOf(Manifest.permission.SEND_SMS), PERM_REQUEST)
             Toast.makeText(this, "مجوز ارسال پیامک لازم است", Toast.LENGTH_SHORT).show()
             return
         }
@@ -209,7 +209,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun drawChart(temps: List<Float>) {
         val entries = temps.mapIndexed { i, v -> Entry(i.toFloat(), v) }
-        val dataSet = LineDataSet(entries, "دما (°C)").aply {
+        val dataSet = LineDataSet(entries, "دما (°C)").apply {
             setDrawCircles(true)
             circleRadius = 2.5f
             lineWidth = 1.5f
@@ -218,7 +218,7 @@ class MainActivity : AppCompatActivity() {
 
         chart.data = LineData(dataSet)
 
-        chart.xAxis.aply {
+        chart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             granularity = 1f
             labelRotationAngle = -45f
