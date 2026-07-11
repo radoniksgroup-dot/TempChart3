@@ -13,6 +13,12 @@
         android:textSize="16sp"
         android:padding="8dp" />
 
+    <Button
+        android:id="@+id/btnReadLast"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="خواندن آخرین پیامک" />
+
     <com.github.mikephil.charting.charts.LineChart
         android:id="@+id/chart"
         android:layout_width="match_parent"
@@ -20,4 +26,3 @@
         android:layout_weight="1" />
 
 </LinearLayout>
-
