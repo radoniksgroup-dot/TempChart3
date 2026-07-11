@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -13,10 +14,13 @@ class SmsReceiver : BroadcastReceiver() {
             for (msg in messages) {
                 body.append(msg.messageBody)
             }
-            val localIntent = Intent("TEMP_SMS_RECEIVED")
-            localIntent.putExtra("body", body.toString())
-            localIntent.setPackage(context.packageName)
-            context.sendBroadcast(localIntent)
+            val text = body.toString()
+
+            if (text.trimStart().startsWith("S")) {
+                val localIntent = Intent(MainActivity.ACTION_SMS)
+                localIntent.putExtra("body", text)
+                LocalBroadcastManager.getInstance(context).sendBroadcast(localIntent)
+            }
         }
     }
 }
